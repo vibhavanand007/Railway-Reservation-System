@@ -117,19 +117,33 @@ def view_trains():
 
 def book_ticket():
     st.subheader("🎟 Book a Ticket")
+    
     train_number = st.text_input("Enter Train Number")
     passenger_name = st.text_input("Passenger Name")
     passenger_age = st.number_input("Passenger Age", min_value=1)
     passenger_gender = st.radio("Select Gender", ["Male", "Female"])
     seat_type = st.radio("Seat Type", ["Window", "Aisle", "Middle"])
-
+    
     if st.button("Book Ticket 🎫"):
+        # Check if there's an available seat of the selected type
         c.execute(
-            f"UPDATE seats_{train_number} SET booked=1, passenger_name=?, passenger_age=?, passenger_gender=? WHERE booked=0 LIMIT 1",
-            (passenger_name, passenger_age, passenger_gender),
+            f"SELECT seat_number FROM seats_{train_number} WHERE booked=0 AND seat_type=? LIMIT 1",
+            (seat_type,)
         )
-        conn.commit()
-        st.success("✅ Ticket booked successfully!")
+        seat = c.fetchone()
+        
+        if seat:
+            seat_number = seat[0]
+            # Book the seat
+            c.execute(
+                f"UPDATE seats_{train_number} SET booked=1, passenger_name=?, passenger_age=?, passenger_gender=? WHERE seat_number=?",
+                (passenger_name, passenger_age, passenger_gender, seat_number),
+            )
+            conn.commit()
+            st.success(f"✅ Ticket booked successfully! Seat Number: {seat_number}")
+        else:
+            st.error(f"❌ No available {seat_type} seats!")
+
 
 def cancel_ticket():
     st.subheader("❌ Cancel a Ticket")
