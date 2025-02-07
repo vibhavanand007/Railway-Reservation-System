@@ -1,18 +1,57 @@
-# 🚆 Indian Railway Reservation System (With Real-Time Train Data)
+# 🚆 Railway Reservation System
 
-This is a **Railway Reservation System** that integrates **real-time train data** from Indian Railways using the **RapidAPI Indian Railways API**.
+A **modern and interactive** railway reservation system built with **Streamlit** and **SQLite**.  
+This project allows users to **search trains, book and cancel tickets, view seat availability, and manage train information** through a user-friendly interface.
+
+---
 
 ## 📌 Features
 
-- 🔍 **Search for trains by name** (Rajdhani, Duronto, etc.)
-- 🎟 **Book tickets & store them in a temporary database**
-- ❌ **Cancel tickets from the temporary database**
-- 🚉 **Show real-time arriving trains at a selected station** (Feature to be added)
+✔ **Real-Time Train Search**  
+✔ **Train Management (Add, Delete, View Trains)**  
+✔ **Ticket Booking & Cancellation**  
+✔ **Seat Availability Check**  
+✔ **Temporary SQLite Database for Bookings**  
+✔ **User-friendly Streamlit UI**
 
-## 🛠 Installation
+---
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/your_username/railway_reservation.git
-   cd railway_reservation
-   ```
+## 🛠 Tech Stack
+
+- **Frontend**: Streamlit
+- **Backend**: Python
+- **Database**: SQLite
+- **Deployment**: Local / Cloud Platforms
+
+---
+
+🎯 **How to Use?**
+
+1. Launch the App using `streamlit run main.py`.
+2. Navigate using the sidebar menu:
+
+   - 🏠 **Home:** Overview of the system.
+   - ➕ **Add Train:** Register a new train in the database.
+   - 🔍 **Search Train:** Find a train by number.
+   - 🗑 **Delete Train:** Remove a train from the system.
+   - 🎟 **Book Ticket:** Reserve a seat on a train.
+   - ❌ **Cancel Ticket:** Cancel an existing ticket.
+   - 📊 **View Seats:** Check seat availability for a train.
+   - 🚂 **View Trains:** Display all registered trains.
+
+🛠 **Future Enhancements**
+
+- 🔹 Integrate Real-Time Indian Railways API
+- 🔹 User Authentication System
+- 🔹 Payment Gateway for Ticket Booking
+- 🔹 Enhanced UI & Styling Improvements
+
+🤝 **Contributing**
+
+Contributions are welcome! Feel free to fork this repository and submit a pull request.
+
+📞 **Contact**
+
+Developer: Vibhav Anand
+📧 Email: [your-email@example.com]
+🔗 LinkedIn: [your-linkedin-profile]
