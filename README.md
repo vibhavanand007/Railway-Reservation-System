@@ -53,5 +53,5 @@ Contributions are welcome! Feel free to fork this repository and submit a pull r
 📞 **Contact**
 
 Developer: Vibhav Anand
-📧 Email: [your-email@example.com]
-🔗 LinkedIn: [your-linkedin-profile]
+📧 Email: vibhavanand25@gmail.com
+🔗 LinkedIn: [LINK](https://www.linkedin.com/in/vibhav-anand-37930b1ba/)
