@@ -137,7 +137,7 @@ def cancel_ticket():
     seat_number = st.number_input("Enter Seat Number", min_value=1)
 
     if st.button("Cancel Ticket ⛔"):
-        c.execute(f"UPDATE seats_{train_number} SET booked=0, passenger_name='', passenger_age='', passenger_gender='' WHERE seat_number=?", (seat_number,))
+        c.execute(f"UPDATE seats_{train_number} SET booked=0, passenger_name='', passenger_age=None, passenger_gender='' WHERE seat_number=?", (seat_number,))
         conn.commit()
         st.success("✅ Ticket canceled successfully!")
 
