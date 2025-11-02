@@ -2,11 +2,26 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 
-# Database Connection
+# -----------------------------
+# Database Setup
+# -----------------------------
 conn = sqlite3.connect("railway.db", check_same_thread=False)
 c = conn.cursor()
 
-# Set Streamlit Page Config
+# Create trains table if not exists
+c.execute("""
+CREATE TABLE IF NOT EXISTS trains (
+    train_number TEXT PRIMARY KEY,
+    train_name TEXT NOT NULL,
+    start_destination TEXT NOT NULL,
+    end_destination TEXT NOT NULL
+)
+""")
+conn.commit()
+
+# -----------------------------
+# Streamlit Page Config
+# -----------------------------
 st.set_page_config(
     page_title="Railway Reservation System",
     page_icon="🚆",
@@ -14,48 +29,29 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Apply Custom CSS Styling
+# -----------------------------
+# Custom Styling
+# -----------------------------
 st.markdown(
     """
     <style>
-        /* Custom Fonts */
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
-
-        * {
-            font-family: 'Poppins', sans-serif;
-        }
-
-        /* Sidebar Styling */
-        [data-testid="stSidebar"] {
-            background-color: #2B2B52;
-            color: white;
-        }
-
-        /* Heading Styling */
-        h1, h2, h3, h4 {
-            color: #2E86C1;
-        }
-
-        /* Buttons Styling */
+        * { font-family: 'Poppins', sans-serif; }
+        [data-testid="stSidebar"] { background-color: #2B2B52; color: white; }
+        h1, h2, h3, h4 { color: #2E86C1; }
         .stButton>button {
-            background-color: #2E86C1;
-            color: white;
-            border-radius: 10px;
-            border: none;
-            padding: 10px;
+            background-color: #2E86C1; color: white;
+            border-radius: 10px; border: none; padding: 10px;
         }
-
-        /* Make Tables More Beautiful */
-        .stDataFrame {
-            border-radius: 10px;
-            overflow: hidden;
-        }
+        .stDataFrame { border-radius: 10px; overflow: hidden; }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
-# Sidebar Navigation with Icons
+# -----------------------------
+# Sidebar Navigation
+# -----------------------------
 st.sidebar.markdown(
     """
     <div style="display: flex; align-items: center;">
@@ -66,7 +62,6 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True
 )
-
 st.sidebar.markdown("---")
 
 option = st.sidebar.radio(
@@ -82,11 +77,38 @@ option = st.sidebar.radio(
         "🚂 View Trains",
     ]
 )
-
 st.sidebar.markdown("---")
 st.sidebar.info("📌 A modern railway reservation system built with Streamlit.")
 
-# Define Functions
+# -----------------------------
+# Utility Function
+# -----------------------------
+def create_seats_table(train_number):
+    """Create a seat table for a given train if not exists."""
+    table_name = f"seats_{train_number}"
+    c.execute(f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (
+        seat_number INTEGER PRIMARY KEY AUTOINCREMENT,
+        seat_type TEXT,
+        booked INTEGER DEFAULT 0,
+        passenger_name TEXT,
+        passenger_age INTEGER,
+        passenger_gender TEXT
+    )
+    """)
+    conn.commit()
+
+    # Initialize 10 seats if empty
+    c.execute(f"SELECT COUNT(*) FROM {table_name}")
+    if c.fetchone()[0] == 0:
+        seat_types = ["Window", "Aisle", "Middle"]
+        for i in range(10):
+            c.execute(f"INSERT INTO {table_name} (seat_type) VALUES (?)", (seat_types[i % 3],))
+        conn.commit()
+
+# -----------------------------
+# Add Train
+# -----------------------------
 def add_train():
     st.subheader("➕ Add a New Train")
     with st.form("train_form"):
@@ -100,18 +122,26 @@ def add_train():
         if not (train_number and train_name and start_dest and end_dest):
             st.error("❌ Please fill in all fields!")
             return
-        
+
         try:
             c.execute(
                 "INSERT INTO trains (train_number, train_name, start_destination, end_destination) VALUES (?, ?, ?, ?)",
                 (train_number, train_name, start_dest, end_dest),
             )
             conn.commit()
-            st.success(f"✅ Train {train_name} added successfully!")
+
+            # Create seat table for this train
+            create_seats_table(train_number)
+            st.success(f"✅ Train '{train_name}' added successfully with seats initialized!")
+
         except sqlite3.IntegrityError:
             st.error(f"⚠ Train Number '{train_number}' already exists! Please use a unique one.")
+        except sqlite3.Error as e:
+            st.error(f"❌ Database error: {e}")
 
-
+# -----------------------------
+# View Trains
+# -----------------------------
 def view_trains():
     st.subheader("🚂 View All Trains")
     c.execute("SELECT * FROM trains")
@@ -123,9 +153,11 @@ def view_trains():
     else:
         st.warning("⚠ No trains found!")
 
+# -----------------------------
+# Book Ticket
+# -----------------------------
 def book_ticket():
     st.subheader("🎟 Book a Ticket")
-    
     train_number = st.text_input("Enter Train Number")
     passenger_name = st.text_input("Passenger Name")
     passenger_age = st.number_input("Passenger Age", min_value=1)
@@ -133,37 +165,90 @@ def book_ticket():
     seat_type = st.radio("Seat Type", ["Window", "Aisle", "Middle"])
     
     if st.button("Book Ticket 🎫"):
-        # Check if there's an available seat of the selected type
-        c.execute(
-            f"SELECT seat_number FROM seats_{train_number} WHERE booked=0 AND seat_type=? LIMIT 1",
-            (seat_type,)
-        )
-        seat = c.fetchone()
-        
-        if seat:
-            seat_number = seat[0]
-            # Book the seat
+        if not train_number:
+            st.error("❌ Please enter a valid train number.")
+            return
+        try:
+            table_name = f"seats_{train_number}"
+            c.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+            if not c.fetchone():
+                st.error(f"❌ Train '{train_number}' does not exist or has no seats table.")
+                return
+
+            # Find available seat
             c.execute(
-                f"UPDATE seats_{train_number} SET booked=1, passenger_name=?, passenger_age=?, passenger_gender=? WHERE seat_number=?",
-                (passenger_name, passenger_age, passenger_gender, seat_number),
+                f"SELECT seat_number FROM {table_name} WHERE booked=0 AND seat_type=? LIMIT 1",
+                (seat_type,)
             )
-            conn.commit()
-            st.success(f"✅ Ticket booked successfully! Seat Number: {seat_number}")
-        else:
-            st.error(f"❌ No available {seat_type} seats!")
+            seat = c.fetchone()
 
+            if seat:
+                seat_number = seat[0]
+                c.execute(
+                    f"UPDATE {table_name} SET booked=1, passenger_name=?, passenger_age=?, passenger_gender=? WHERE seat_number=?",
+                    (passenger_name, passenger_age, passenger_gender, seat_number),
+                )
+                conn.commit()
+                st.success(f"✅ Ticket booked successfully! Seat Number: {seat_number}")
+            else:
+                st.error(f"❌ No available {seat_type} seats!")
+        except sqlite3.Error as e:
+            st.error(f"❌ Database error: {e}")
 
+# -----------------------------
+# Cancel Ticket
+# -----------------------------
 def cancel_ticket():
     st.subheader("❌ Cancel a Ticket")
     train_number = st.text_input("Enter Train Number")
     seat_number = st.number_input("Enter Seat Number", min_value=1)
-
     if st.button("Cancel Ticket ⛔"):
-        c.execute(f"UPDATE seats_{train_number} SET booked=0, passenger_name='', passenger_age='', passenger_gender='' WHERE seat_number=?", (seat_number,))
-        conn.commit()
-        st.success("✅ Ticket canceled successfully!")
+        try:
+            table_name = f"seats_{train_number}"
+            c.execute(f"UPDATE {table_name} SET booked=0, passenger_name='', passenger_age='', passenger_gender='' WHERE seat_number=?", (seat_number,))
+            conn.commit()
+            st.success("✅ Ticket canceled successfully!")
+        except sqlite3.Error as e:
+            st.error(f"❌ Database error: {e}")
 
-# Page Navigation
+# -----------------------------
+# View Seats
+# -----------------------------
+def view_seats():
+    st.subheader("📊 View Seats in a Train")
+    train_number = st.text_input("Enter Train Number")
+
+    if st.button("View Seats"):
+        if not train_number:
+            st.error("❌ Please enter a train number.")
+            return
+
+        table_name = f"seats_{train_number}"
+        try:
+            # Check and create if not exists
+            c.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}'")
+            if not c.fetchone():
+                st.warning(f"⚠ Seat data not found for Train {train_number}. Creating default seats...")
+                create_seats_table(train_number)
+
+            c.execute(f"SELECT * FROM {table_name}")
+            seats = c.fetchall()
+
+            if seats:
+                df = pd.DataFrame(
+                    seats,
+                    columns=["Seat Number", "Seat Type", "Booked", "Passenger Name", "Passenger Age", "Passenger Gender"]
+                )
+                st.dataframe(df)
+            else:
+                st.error("⚠ No seat data found!")
+
+        except sqlite3.Error as e:
+            st.error(f"❌ Database error: {e}")
+
+# -----------------------------
+# Page Routing
+# -----------------------------
 if option == "🏠 Home":
     st.markdown(
         """
@@ -172,11 +257,9 @@ if option == "🏠 Home":
                  width="50" style="margin-right: 10px; border-radius: 5px;">
             <h1>Railway Reservation System</h1>
         </div>
-        """, 
+        """,
         unsafe_allow_html=True
     )
-
-
     st.markdown("### Welcome to the Railway Reservation System.")
     st.info("📌 Use the sidebar to navigate and manage train reservations.")
 elif option == "➕ Add Train":
@@ -195,23 +278,20 @@ elif option == "🗑 Delete Train":
     st.subheader("🗑 Delete a Train")
     train_number = st.text_input("Enter Train Number")
     if st.button("Delete Train"):
-        c.execute("DELETE FROM trains WHERE train_number=?", (train_number,))
-        conn.commit()
-        st.success(f"🗑 Train {train_number} deleted successfully!")
+        try:
+            c.execute("DELETE FROM trains WHERE train_number=?", (train_number,))
+            conn.commit()
+            # Also drop corresponding seat table
+            c.execute(f"DROP TABLE IF EXISTS seats_{train_number}")
+            conn.commit()
+            st.success(f"🗑 Train {train_number} deleted successfully!")
+        except sqlite3.Error as e:
+            st.error(f"❌ Database error: {e}")
 elif option == "🎟 Book Ticket":
     book_ticket()
 elif option == "❌ Cancel Ticket":
     cancel_ticket()
 elif option == "📊 View Seats":
-    st.subheader("📊 View Seats in a Train")
-    train_number = st.text_input("Enter Train Number")
-    if st.button("View Seats"):
-        c.execute(f"SELECT * FROM seats_{train_number}")
-        seats = c.fetchall()
-        if seats:
-            df = pd.DataFrame(seats, columns=["Seat Number", "Seat Type", "Booked", "Passenger Name", "Passenger Age", "Passenger Gender"])
-            st.dataframe(df)
-        else:
-            st.error("⚠ No seat data found!")
+    view_seats()
 elif option == "🚂 View Trains":
     view_trains()
