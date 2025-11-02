@@ -97,12 +97,20 @@ def add_train():
         submit = st.form_submit_button("Add Train 🚂")
     
     if submit:
-        c.execute(
-            "INSERT INTO trains (train_number, train_name, start_destination, end_destination) VALUES (?, ?, ?, ?)",
-            (train_number, train_name, start_dest, end_dest),
-        )
-        conn.commit()
-        st.success(f"✅ Train {train_name} added successfully!")
+        if not (train_number and train_name and start_dest and end_dest):
+            st.error("❌ Please fill in all fields!")
+            return
+        
+        try:
+            c.execute(
+                "INSERT INTO trains (train_number, train_name, start_destination, end_destination) VALUES (?, ?, ?, ?)",
+                (train_number, train_name, start_dest, end_dest),
+            )
+            conn.commit()
+            st.success(f"✅ Train {train_name} added successfully!")
+        except sqlite3.IntegrityError:
+            st.error(f"⚠ Train Number '{train_number}' already exists! Please use a unique one.")
+
 
 def view_trains():
     st.subheader("🚂 View All Trains")
